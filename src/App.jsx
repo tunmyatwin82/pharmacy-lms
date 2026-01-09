@@ -1,113 +1,79 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { db } from './firebaseConfig';
+import { collection, getDocs } from 'firebase/firestore';
 import VideoSection from './components/VideoSection';
 import Flashcard from './components/Flashcard';
 import Quiz from './components/Quiz';
-import { collection, addDoc } from 'firebase/firestore';
 
-const App = () => {
-  const [step, setStep] = useState('video');
-  const [finalScore, setFinalScore] = useState(0);
+function App() {
+  const [lessons, setLessons] = useState([]);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const lessonData = {
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    flashcards: [{ front: "Amoxicillin", back: "ပိုးသတ်ဆေး (Antibiotic)" }],
-    quiz: [{ q: "Amoxicillin သည် ဘာအတွက်သုံးသလဲ?", options: ["အကိုက်အခဲပျောက်ရန်", "ပိုးသတ်ရန်", "ဗီတာမင်"], correct: 1 }]
-  };
-  // App component ထဲမှာ ဒီ function လေးကို ထည့်ပါ
-const seedData = async () => {
-  const lessons = [
-    {
-      title: "Antibiotics (ပိုးသတ်ဆေးများ) အခြေခံ",
-      videoUrl: "https://www.youtube.com/watch?v=XhZp9S1P0Sg",
-      flashcards: [
-        { front: "Antibiotic ဆိုတာ ဘာလဲ?", back: "Bacteria ပိုးမွှားများကို သတ်ပေးသော ဆေး" },
-        { front: "Amoxicillin သည် မည်သည့်အုပ်စုဝင်လဲ?", back: "Penicillin Group" }
-      ],
-      quiz: [
-        {
-          question: "Penicillin နှင့် မတည့်သူ (Allergy ရှိသူ) ကို မည်သည့်ဆေး မပေးသင့်သလဲ?",
-          options: ["Amoxicillin", "Azithromycin", "Ciprofloxacin"],
-          correctAnswer: "Amoxicillin"
-        }
-      ]
-    },
-    {
-      title: "Hypertension (သွေးတိုးရောဂါ) ကုထုံးများ",
-      videoUrl: "https://www.youtube.com/watch?v=7X8iL8vXGyo",
-      flashcards: [
-        { front: "Normal Blood Pressure က ဘယ်လောက်လဲ?", back: "120/80 mmHg" },
-        { front: "Amlodipine သည် မည်သည့်ဆေးအုပ်စုလဲ?", back: "Calcium Channel Blocker (CCB)" }
-      ],
-      quiz: [
-        {
-          question: "သွေးတိုးဆေးကို ပုံမှန်အားဖြင့် မည်သည့်အချိန်တွင် သောက်လေ့ရှိသလဲ?",
-          options: ["မနက်စာစားပြီး", "ညအိပ်ခါနီး", "ဗိုက်ထဲစာမရှိခင်"],
-          correctAnswer: "မနက်စာစားပြီး"
-        }
-      ]
-    }
-  ];
+  // Firebase ကနေ Lessons တွေကို ဆွဲယူတဲ့အပိုင်း
+  useEffect(() => {
+    const fetchLessons = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "lessons"));
+        const data = querySnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data() 
+        }));
+        setLessons(data);
+      } catch (error) {
+        console.error("Error fetching lessons:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLessons();
+  }, []);
 
-  try {
-    for (const lesson of lessons) {
-      await addDoc(collection(db, "lessons"), lesson);
-    }
-    alert("သင်ခန်းစာအားလုံး တင်ပြီးပါပြီ!");
-  } catch (err) {
-    alert("Error: " + err.message);
-  }
-};
+  if (loading) return <div className="p-10 text-center font-bold">သင်ခန်းစာများ ရယူနေပါသည်...</div>;
+  if (lessons.length === 0) return <div className="p-10 text-center">Firebase တွင် data ရှာမတွေ့ပါ။</div>;
+
+  const currentLesson = lessons[currentIdx];
+
   return (
-    <div className="max-w-md mx-auto min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-slate-50 p-4 font-sans text-slate-900">
+      <div className="max-w-5xl mx-auto">
+        <header className="mb-8 text-center md:text-left">
+          <h1 className="text-3xl font-extrabold text-blue-900">Dr. Tun Pharmacy School</h1>
+          <p className="text-slate-500">ယနေ့လေ့လာရန် - {currentLesson.title}</p>
+        </header>
 
-      {/* ခလုတ်ကို ဒီနေရာမှာ (Header အပေါ်မှာ) ခေတ္တ ထည့်ထားပါ */}
-        <button 
-          onClick={seedData}
-          className="bg-orange-500 text-white px-4 py-2 rounded-lg m-4 hover:bg-orange-600 transition shadow-lg font-bold"
-        >
-          🚀 သင်ခန်းစာဒေတာများ Firebase သို့ တင်မည်
-        </button>
+        {/* Lesson ရွေးရန် ခလုတ်များ */}
+        <div className="flex gap-3 mb-8 overflow-x-auto pb-4 scrollbar-hide">
+          {lessons.map((lesson, index) => (
+            <button
+              key={lesson.id}
+              onClick={() => setCurrentIdx(index)}
+              className={`px-6 py-2 rounded-full font-medium transition-all whitespace-nowrap ${
+                currentIdx === index 
+                ? 'bg-blue-600 text-white shadow-lg' 
+                : 'bg-white text-blue-600 border border-blue-100 hover:bg-blue-50'
+              }`}
+            >
+              {lesson.title}
+            </button>
+          ))}
+        </div>
 
-      {/* Header */}
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-black text-blue-900">Pharmacy School</h1>
-          <p className="text-sm text-gray-500 font-medium">Lesson 1: Basics</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Video Section */}
+          <div className="lg:col-span-2 shadow-sm rounded-2xl overflow-hidden">
+            <VideoSection videoUrl={currentLesson.videoUrl} />
+          </div>
+          
+          {/* Flashcard နှင့် Quiz Section */}
+          <div className="space-y-8">
+            <Flashcard cards={currentLesson.flashcards || []} />
+            <Quiz questions={currentLesson.quiz || []} />
+          </div>
         </div>
       </div>
-
-      {/* Main Content */}
-      {step === 'video' && (
-        <VideoSection videoUrl={lessonData.videoUrl} onComplete={() => setStep('flashcards')} />
-      )}
-
-      {step === 'flashcards' && (
-        <Flashcard cards={lessonData.flashcards} onComplete={() => setStep('quiz')} />
-      )}
-
-      {step === 'quiz' && (
-        <Quiz questions={lessonData.quiz} onFinish={(score) => {
-          setFinalScore(score);
-          setStep('result');
-        }} />
-      )}
-
-      {step === 'result' && (
-        <div className="text-center bg-white p-10 rounded-3xl shadow-2xl animate-bounceIn">
-          <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-bold text-gray-800">အောင်မြင်ပါတယ်!</h2>
-          <p className="text-gray-500 mt-2">ရမှတ်: <span className="text-blue-600 font-bold">{finalScore} / 1</span></p>
-          <button 
-            onClick={() => setStep('video')}
-            className="mt-8 text-blue-600 font-bold hover:underline"
-          >
-            ပြန်လည်လေ့လာရန်
-          </button>
-        </div>
-      )}
     </div>
   );
-};
+}
 
 export default App;
